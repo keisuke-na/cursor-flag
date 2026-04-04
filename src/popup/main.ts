@@ -24,6 +24,15 @@ function createRuleRow(rule: Rule) {
   blinkLabel.textContent = ' Blink'
   blinkLabel.prepend(blinkInput)
 
+  const heartbeatInput = document.createElement('input')
+  heartbeatInput.type = 'checkbox'
+  heartbeatInput.checked = rule.heartbeat
+  heartbeatInput.addEventListener('change', save)
+
+  const heartbeatLabel = document.createElement('label')
+  heartbeatLabel.textContent = ' Heartbeat'
+  heartbeatLabel.prepend(heartbeatInput)
+
   const deleteBtn = document.createElement('button')
   deleteBtn.textContent = '✕'
   deleteBtn.addEventListener('click', () => {
@@ -34,7 +43,7 @@ function createRuleRow(rule: Rule) {
   domainInput.addEventListener('input', save)
   textInput.addEventListener('input', save)
 
-  div.append(domainInput, textInput, blinkLabel, deleteBtn)
+  div.append(domainInput, textInput, blinkLabel, heartbeatLabel, deleteBtn)
   return div
 }
 
@@ -42,7 +51,7 @@ function save() {
   const rows = rulesContainer.querySelectorAll('.rule')
   const rules: Rule[] = Array.from(rows).map((row) => {
     const inputs = row.querySelectorAll('input')
-    return { domain: inputs[0].value.trim(), text: inputs[1].value.trim(), blink: inputs[2].checked }
+    return { domain: inputs[0].value.trim(), text: inputs[1].value.trim(), blink: inputs[2].checked, heartbeat: inputs[3].checked }
   }).filter((r) => r.domain && r.text)
 
   chrome.storage.sync.set({ rules })
@@ -58,7 +67,7 @@ function render(rules: Rule[]) {
 addButton.addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   const domain = tab?.url ? new URL(tab.url).hostname : ''
-  rulesContainer.appendChild(createRuleRow({ domain, text: '', blink: false }))
+  rulesContainer.appendChild(createRuleRow({ domain, text: '', blink: false, heartbeat: false }))
 })
 
 chrome.storage.sync.get('rules', (result: { rules?: Rule[] }) => {

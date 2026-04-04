@@ -11,19 +11,21 @@ function textToHue(text: string): number {
   return ((hash % 360) + 360) % 360
 }
 
-function createLabel(text: string, blink: boolean) {
+function createLabel(text: string, blink: boolean, heartbeat: boolean) {
   if (!style) {
     style = document.createElement('style')
-    style.textContent = `@keyframes cursor-flag-blink { 0%,100%{visibility:visible} 50%{visibility:hidden} }`
+    style.textContent = `@keyframes cursor-flag-blink { 0%,100%{visibility:visible} 50%{visibility:hidden} } @keyframes cursor-flag-heartbeat { 0%,100%{transform:scale(1)} 14%{transform:scale(1.15)} 28%{transform:scale(1)} 42%{transform:scale(1.1)} 56%{transform:scale(1)} }`
     document.documentElement.appendChild(style)
   }
 
   const el = document.createElement('div')
   const span = document.createElement('span')
+  span.style.display = 'inline-block'
   span.textContent = text
-  if (blink) {
-    span.style.animation = 'cursor-flag-blink 0.6s step-end infinite'
-  }
+  const animations: string[] = []
+  if (blink) animations.push('cursor-flag-blink 0.6s step-end infinite')
+  if (heartbeat) animations.push('cursor-flag-heartbeat 1.7s ease-in-out infinite')
+  if (animations.length) span.style.animation = animations.join(', ')
   el.appendChild(span)
   Object.assign(el.style, {
     position: 'fixed',
@@ -59,7 +61,7 @@ function init() {
     const matched = rules.find((r) => hostname === r.domain)
     if (!matched) return
 
-    label = createLabel(matched.text, matched.blink)
+    label = createLabel(matched.text, matched.blink, matched.heartbeat)
     document.addEventListener('mousemove', onMouseMove)
   })
 }
