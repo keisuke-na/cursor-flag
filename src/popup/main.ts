@@ -2,6 +2,8 @@ import type { Rule } from '@/types'
 
 const rulesContainer = document.querySelector('#rules')!
 const addButton = document.querySelector('#add')!
+const exportButton = document.querySelector('#export')!
+const importButton = document.querySelector('#import')!
 
 function createRuleRow(rule: Rule) {
   const div = document.createElement('div')
@@ -68,6 +70,37 @@ addButton.addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   const domain = tab?.url ? new URL(tab.url).hostname : ''
   rulesContainer.appendChild(createRuleRow({ domain, text: '', blink: false, heartbeat: false }))
+})
+
+exportButton.addEventListener('click', () => {
+  chrome.storage.sync.get('rules', (result: { rules?: Rule[] }) => {
+    const blob = new Blob([JSON.stringify(result.rules ?? [], null, 2)], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'cursor-flag-rules.json'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  })
+})
+
+importButton.addEventListener('click', () => {
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.json'
+  input.addEventListener('change', () => {
+    const file = input.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const imported: Rule[] = JSON.parse(reader.result as string)
+      chrome.storage.sync.get('rules', (result: { rules?: Rule[] }) => {
+        const merged = [...(result.rules ?? []), ...imported]
+        chrome.storage.sync.set({ rules: merged }, () => render(merged))
+      })
+    }
+    reader.readAsText(file)
+  })
+  input.click()
 })
 
 chrome.storage.sync.get('rules', (result: { rules?: Rule[] }) => {
