@@ -2,6 +2,16 @@ import type { Rule } from '@/types'
 
 let label: HTMLDivElement | null = null
 let style: HTMLStyleElement | null = null
+let errorCounterEl: HTMLDivElement | null = null
+const errorCounts = { js: 0, ne: 0 }
+
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'cursor-flag-error') {
+    const kind = e.data.kind as 'js' | 'ne'
+    errorCounts[kind]++
+    updateErrorCounter()
+  }
+})
 
 function textToHue(text: string): number {
   let hash = 0
@@ -11,11 +21,64 @@ function textToHue(text: string): number {
   return ((hash % 360) + 360) % 360
 }
 
-function createLabel(text: string, blink: boolean, heartbeat: boolean) {
+function errorColor(count: number): string {
+  if (count === 0) return '#4caf50'
+  if (count <= 3) return '#ff9800'
+  return '#f44336'
+}
+
+function updateErrorCounter() {
+  if (!errorCounterEl) return
+  const spans = errorCounterEl.querySelectorAll('span')
+  const entries = [
+    { label: 'JS', count: errorCounts.js },
+    { label: 'NE', count: errorCounts.ne },
+  ]
+  entries.forEach((e, i) => {
+    spans[i].textContent = `${e.label}:${e.count}`
+    spans[i].style.color = errorColor(e.count)
+  })
+}
+
+function createErrorCounter(): HTMLDivElement {
+  const counter = document.createElement('div')
+  Object.assign(counter.style, {
+    fontSize: '10px',
+    fontFamily: 'monospace',
+    fontWeight: 'bold',
+    display: 'flex',
+    gap: '6px',
+    justifyContent: 'center',
+    marginBottom: '2px',
+  })
+  for (const label of ['JS:0', 'NE:0']) {
+    const s = document.createElement('span')
+    s.textContent = label
+    s.style.color = '#4caf50'
+    counter.appendChild(s)
+  }
+  return counter
+}
+
+function createLabel(text: string, blink: boolean, heartbeat: boolean, errorCounter: boolean) {
   if (!style) {
     style = document.createElement('style')
     style.textContent = `@keyframes cursor-flag-blink { 0%,100%{visibility:visible} 50%{visibility:hidden} } @keyframes cursor-flag-heartbeat { 0%,100%{transform:scale(1)} 14%{transform:scale(1.15)} 28%{transform:scale(1)} 42%{transform:scale(1.1)} 56%{transform:scale(1)} }`
     document.documentElement.appendChild(style)
+  }
+
+  const wrapper = document.createElement('div')
+  Object.assign(wrapper.style, {
+    position: 'fixed',
+    pointerEvents: 'none',
+    zIndex: '2147483647',
+    display: 'none',
+  })
+
+  if (errorCounter) {
+    errorCounterEl = createErrorCounter()
+    wrapper.appendChild(errorCounterEl)
+    updateErrorCounter()
   }
 
   const el = document.createElement('div')
@@ -28,9 +91,6 @@ function createLabel(text: string, blink: boolean, heartbeat: boolean) {
   if (animations.length) span.style.animation = animations.join(', ')
   el.appendChild(span)
   Object.assign(el.style, {
-    position: 'fixed',
-    pointerEvents: 'none',
-    zIndex: '2147483647',
     background: `hsla(${textToHue(text)}, 70%, 45%, 0.9)`,
     color: '#fff',
     padding: '4px 8px',
@@ -39,10 +99,10 @@ function createLabel(text: string, blink: boolean, heartbeat: boolean) {
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
     fontFamily: 'sans-serif',
-    display: 'none',
   })
-  document.documentElement.appendChild(el)
-  return el
+  wrapper.appendChild(el)
+  document.documentElement.appendChild(wrapper)
+  return wrapper
 }
 
 function onMouseMove(e: MouseEvent) {
@@ -61,7 +121,7 @@ function init() {
     const matched = rules.find((r) => hostname === r.domain)
     if (!matched) return
 
-    label = createLabel(matched.text, matched.blink, matched.heartbeat)
+    label = createLabel(matched.text, matched.blink, matched.heartbeat, matched.errorCounter)
     document.addEventListener('mousemove', onMouseMove)
   })
 }

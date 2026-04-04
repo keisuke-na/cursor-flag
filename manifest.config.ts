@@ -18,6 +18,11 @@ export default defineManifest({
   content_scripts: [{
     js: ['src/content/main.ts'],
     matches: ['<all_urls>'],
+  }, {
+    js: ['src/content/hook.ts'],
+    matches: ['<all_urls>'],
+    world: 'MAIN',
+    run_at: 'document_start',
   }],
   permissions: [
     'storage',

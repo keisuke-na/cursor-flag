@@ -35,6 +35,15 @@ function createRuleRow(rule: Rule) {
   heartbeatLabel.textContent = ' Heartbeat'
   heartbeatLabel.prepend(heartbeatInput)
 
+  const errorCounterInput = document.createElement('input')
+  errorCounterInput.type = 'checkbox'
+  errorCounterInput.checked = rule.errorCounter
+  errorCounterInput.addEventListener('change', save)
+
+  const errorCounterLabel = document.createElement('label')
+  errorCounterLabel.textContent = ' ERR'
+  errorCounterLabel.prepend(errorCounterInput)
+
   const deleteBtn = document.createElement('button')
   deleteBtn.textContent = '✕'
   deleteBtn.addEventListener('click', () => {
@@ -45,7 +54,7 @@ function createRuleRow(rule: Rule) {
   domainInput.addEventListener('input', save)
   textInput.addEventListener('input', save)
 
-  div.append(domainInput, textInput, blinkLabel, heartbeatLabel, deleteBtn)
+  div.append(domainInput, textInput, blinkLabel, heartbeatLabel, errorCounterLabel, deleteBtn)
   return div
 }
 
@@ -53,7 +62,7 @@ function save() {
   const rows = rulesContainer.querySelectorAll('.rule')
   const rules: Rule[] = Array.from(rows).map((row) => {
     const inputs = row.querySelectorAll('input')
-    return { domain: inputs[0].value.trim(), text: inputs[1].value.trim(), blink: inputs[2].checked, heartbeat: inputs[3].checked }
+    return { domain: inputs[0].value.trim(), text: inputs[1].value.trim(), blink: inputs[2].checked, heartbeat: inputs[3].checked, errorCounter: inputs[4].checked }
   }).filter((r) => r.domain && r.text)
 
   chrome.storage.sync.set({ rules })
@@ -69,7 +78,7 @@ function render(rules: Rule[]) {
 addButton.addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   const domain = tab?.url ? new URL(tab.url).hostname : ''
-  rulesContainer.appendChild(createRuleRow({ domain, text: '', blink: false, heartbeat: false }))
+  rulesContainer.appendChild(createRuleRow({ domain, text: '', blink: false, heartbeat: false, errorCounter: false }))
 })
 
 exportButton.addEventListener('click', () => {

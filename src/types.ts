@@ -3,4 +3,5 @@ export interface Rule {
   text: string
   blink: boolean
   heartbeat: boolean
+  errorCounter: boolean
 }
