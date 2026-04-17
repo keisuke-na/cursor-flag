@@ -1,48 +1,54 @@
 import type { Rule } from '@/types'
+import { matchPatternToRegex } from '@/match'
 
 const rulesContainer = document.querySelector('#rules')!
 const addButton = document.querySelector('#add')!
 const exportButton = document.querySelector('#export')!
 const importButton = document.querySelector('#import')!
 
+function suggestPatternFromUrl(url: string | undefined): string {
+  if (!url) return ''
+  try {
+    const u = new URL(url)
+    return `${u.protocol}//${u.host}/*`
+  } catch {
+    return ''
+  }
+}
+
+function validatePatternInput(input: HTMLInputElement) {
+  const ok = input.value.trim() === '' || matchPatternToRegex(input.value.trim()) !== null
+  input.style.borderColor = ok ? '' : '#f44336'
+}
+
+function createCheckbox(labelText: string, checked: boolean): { input: HTMLInputElement; label: HTMLLabelElement } {
+  const input = document.createElement('input')
+  input.type = 'checkbox'
+  input.checked = checked
+  input.addEventListener('change', save)
+
+  const label = document.createElement('label')
+  label.textContent = ` ${labelText}`
+  label.prepend(input)
+  return { input, label }
+}
+
 function createRuleRow(rule: Rule) {
   const div = document.createElement('div')
   div.className = 'rule'
 
-  const domainInput = document.createElement('input')
-  domainInput.placeholder = 'Domain (e.g. example.com)'
-  domainInput.value = rule.domain
+  const patternInput = document.createElement('input')
+  patternInput.placeholder = 'Match pattern (e.g. https://*.example.com/*)'
+  patternInput.value = rule.pattern
+  validatePatternInput(patternInput)
 
   const textInput = document.createElement('input')
   textInput.placeholder = 'Label text'
   textInput.value = rule.text
 
-  const blinkInput = document.createElement('input')
-  blinkInput.type = 'checkbox'
-  blinkInput.checked = rule.blink
-  blinkInput.addEventListener('change', save)
-
-  const blinkLabel = document.createElement('label')
-  blinkLabel.textContent = ' Blink'
-  blinkLabel.prepend(blinkInput)
-
-  const heartbeatInput = document.createElement('input')
-  heartbeatInput.type = 'checkbox'
-  heartbeatInput.checked = rule.heartbeat
-  heartbeatInput.addEventListener('change', save)
-
-  const heartbeatLabel = document.createElement('label')
-  heartbeatLabel.textContent = ' Heartbeat'
-  heartbeatLabel.prepend(heartbeatInput)
-
-  const errorCounterInput = document.createElement('input')
-  errorCounterInput.type = 'checkbox'
-  errorCounterInput.checked = rule.errorCounter
-  errorCounterInput.addEventListener('change', save)
-
-  const errorCounterLabel = document.createElement('label')
-  errorCounterLabel.textContent = ' ERR'
-  errorCounterLabel.prepend(errorCounterInput)
+  const blink = createCheckbox('Blink', rule.blink)
+  const heartbeat = createCheckbox('Heartbeat', rule.heartbeat)
+  const errorCounter = createCheckbox('ERR', rule.errorCounter)
 
   const deleteBtn = document.createElement('button')
   deleteBtn.textContent = '✕'
@@ -51,10 +57,13 @@ function createRuleRow(rule: Rule) {
     save()
   })
 
-  domainInput.addEventListener('input', save)
+  patternInput.addEventListener('input', () => {
+    validatePatternInput(patternInput)
+    save()
+  })
   textInput.addEventListener('input', save)
 
-  div.append(domainInput, textInput, blinkLabel, heartbeatLabel, errorCounterLabel, deleteBtn)
+  div.append(patternInput, textInput, blink.label, heartbeat.label, errorCounter.label, deleteBtn)
   return div
 }
 
@@ -62,8 +71,8 @@ function save() {
   const rows = rulesContainer.querySelectorAll('.rule')
   const rules: Rule[] = Array.from(rows).map((row) => {
     const inputs = row.querySelectorAll('input')
-    return { domain: inputs[0].value.trim(), text: inputs[1].value.trim(), blink: inputs[2].checked, heartbeat: inputs[3].checked, errorCounter: inputs[4].checked }
-  }).filter((r) => r.domain && r.text)
+    return { pattern: inputs[0].value.trim(), text: inputs[1].value.trim(), blink: inputs[2].checked, heartbeat: inputs[3].checked, errorCounter: inputs[4].checked }
+  }).filter((r) => r.pattern && r.text && matchPatternToRegex(r.pattern) !== null)
 
   chrome.storage.sync.set({ rules })
 }
@@ -77,8 +86,8 @@ function render(rules: Rule[]) {
 
 addButton.addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  const domain = tab?.url ? new URL(tab.url).hostname : ''
-  rulesContainer.appendChild(createRuleRow({ domain, text: '', blink: false, heartbeat: false, errorCounter: false }))
+  const pattern = suggestPatternFromUrl(tab?.url)
+  rulesContainer.appendChild(createRuleRow({ pattern, text: '', blink: false, heartbeat: false, errorCounter: false }))
 })
 
 exportButton.addEventListener('click', () => {

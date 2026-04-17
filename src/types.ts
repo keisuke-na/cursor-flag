@@ -1,5 +1,5 @@
 export interface Rule {
-  domain: string
+  pattern: string
   text: string
   blink: boolean
   heartbeat: boolean

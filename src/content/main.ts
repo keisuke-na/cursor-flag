@@ -1,4 +1,5 @@
 import type { Rule } from '@/types'
+import { matchesUrl } from '@/match'
 
 let label: HTMLDivElement | null = null
 let style: HTMLStyleElement | null = null
@@ -114,11 +115,9 @@ function onMouseMove(e: MouseEvent) {
 }
 
 function init() {
-  const hostname = location.hostname
-
   chrome.storage.sync.get('rules', (result: { rules?: Rule[] }) => {
     const rules = result.rules ?? []
-    const matched = rules.find((r) => hostname === r.domain)
+    const matched = rules.find((r) => matchesUrl(r.pattern, location.href))
     if (!matched) return
 
     label = createLabel(matched.text, matched.blink, matched.heartbeat, matched.errorCounter)
