@@ -1,5 +1,6 @@
 import type { Rule } from '@/types'
 import { matchesUrl } from '@/match'
+import { resolveColors, toHsl } from '@/color'
 
 let label: HTMLDivElement | null = null
 let style: HTMLStyleElement | null = null
@@ -13,14 +14,6 @@ window.addEventListener('message', (e) => {
     updateErrorCounter()
   }
 })
-
-function textToHue(text: string): number {
-  let hash = 0
-  for (let i = 0; i < text.length; i++) {
-    hash = text.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  return ((hash % 360) + 360) % 360
-}
 
 function errorColor(count: number): string {
   if (count === 0) return '#4caf50'
@@ -61,7 +54,9 @@ function createErrorCounter(): HTMLDivElement {
   return counter
 }
 
-function createLabel(text: string, blink: boolean, heartbeat: boolean, errorCounter: boolean) {
+function createLabel(rule: Rule) {
+  const { text, blink, heartbeat, errorCounter } = rule
+  const { bg, fg } = resolveColors(rule)
   if (!style) {
     style = document.createElement('style')
     style.textContent = `@keyframes cursor-flag-blink { 0%,100%{visibility:visible} 50%{visibility:hidden} } @keyframes cursor-flag-heartbeat { 0%,100%{transform:scale(1)} 14%{transform:scale(1.15)} 28%{transform:scale(1)} 42%{transform:scale(1.1)} 56%{transform:scale(1)} }`
@@ -92,8 +87,8 @@ function createLabel(text: string, blink: boolean, heartbeat: boolean, errorCoun
   if (animations.length) span.style.animation = animations.join(', ')
   el.appendChild(span)
   Object.assign(el.style, {
-    background: `hsla(${textToHue(text)}, 70%, 45%, 0.9)`,
-    color: '#fff',
+    background: toHsl(bg, 0.9),
+    color: toHsl(fg),
     padding: '4px 8px',
     borderRadius: '4px',
     fontSize: '13px',
@@ -120,7 +115,7 @@ function init() {
     const matched = rules.find((r) => matchesUrl(r.pattern, location.href))
     if (!matched) return
 
-    label = createLabel(matched.text, matched.blink, matched.heartbeat, matched.errorCounter)
+    label = createLabel(matched)
     document.addEventListener('mousemove', onMouseMove)
   })
 }

@@ -1,6 +1,8 @@
 import type { Rule } from '@/types'
 import { matchPatternToRegex } from '@/match'
 
+type RuleRow = HTMLDivElement & { ruleValue: Rule }
+
 const rulesContainer = document.querySelector('#rules')!
 const addButton = document.querySelector('#add')!
 const exportButton = document.querySelector('#export')!
@@ -33,8 +35,8 @@ function createCheckbox(labelText: string, checked: boolean): { input: HTMLInput
   return { input, label }
 }
 
-function createRuleRow(rule: Rule) {
-  const div = document.createElement('div')
+function createRuleRow(rule: Rule): RuleRow {
+  const div = document.createElement('div') as RuleRow
   div.className = 'rule'
 
   const patternInput = document.createElement('input')
@@ -45,6 +47,17 @@ function createRuleRow(rule: Rule) {
   const textInput = document.createElement('input')
   textInput.placeholder = 'Label text'
   textInput.value = rule.text
+
+  const colorInput = document.createElement('input')
+  colorInput.type = 'color'
+  colorInput.value = rule.color ?? '#888888'
+  colorInput.disabled = !rule.color
+  colorInput.addEventListener('input', save)
+
+  const auto = createCheckbox('Auto', !rule.color)
+  auto.input.addEventListener('change', () => {
+    colorInput.disabled = auto.input.checked
+  })
 
   const blink = createCheckbox('Blink', rule.blink)
   const heartbeat = createCheckbox('Heartbeat', rule.heartbeat)
@@ -63,16 +76,27 @@ function createRuleRow(rule: Rule) {
   })
   textInput.addEventListener('input', save)
 
-  div.append(patternInput, textInput, blink.label, heartbeat.label, errorCounter.label, deleteBtn)
+  div.append(patternInput, textInput, colorInput, auto.label, blink.label, heartbeat.label, errorCounter.label, deleteBtn)
+
+  Object.defineProperty(div, 'ruleValue', {
+    get: (): Rule => ({
+      pattern: patternInput.value.trim(),
+      text: textInput.value.trim(),
+      color: auto.input.checked ? undefined : colorInput.value,
+      blink: blink.input.checked,
+      heartbeat: heartbeat.input.checked,
+      errorCounter: errorCounter.input.checked,
+    }),
+  })
+
   return div
 }
 
 function save() {
-  const rows = rulesContainer.querySelectorAll('.rule')
-  const rules: Rule[] = Array.from(rows).map((row) => {
-    const inputs = row.querySelectorAll('input')
-    return { pattern: inputs[0].value.trim(), text: inputs[1].value.trim(), blink: inputs[2].checked, heartbeat: inputs[3].checked, errorCounter: inputs[4].checked }
-  }).filter((r) => r.pattern && r.text && matchPatternToRegex(r.pattern) !== null)
+  const rows = Array.from(rulesContainer.querySelectorAll('.rule')) as RuleRow[]
+  const rules = rows
+    .map((r) => r.ruleValue)
+    .filter((r) => r.pattern && r.text && matchPatternToRegex(r.pattern) !== null)
 
   chrome.storage.sync.set({ rules })
 }
