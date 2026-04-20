@@ -1,5 +1,5 @@
 import type { Rule } from '@/types'
-import { matchPatternToRegex } from '@/match'
+import { matchPatternToRegex, matchesUrl } from '@/match'
 
 type RuleRow = HTMLDivElement & { ruleValue: Rule }
 
@@ -108,6 +108,16 @@ function render(rules: Rule[]) {
   }
 }
 
+async function highlightActiveRule() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+  if (!tab?.url) return
+  const rows = Array.from(rulesContainer.querySelectorAll('.rule')) as RuleRow[]
+  const activeRow = rows.find((r) => r.ruleValue.pattern && matchesUrl(r.ruleValue.pattern, tab.url!))
+  if (!activeRow) return
+  activeRow.classList.add('rule--active')
+  activeRow.scrollIntoView({ block: 'center' })
+}
+
 addButton.addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
   const pattern = suggestPatternFromUrl(tab?.url)
@@ -148,4 +158,5 @@ importButton.addEventListener('click', () => {
 chrome.storage.sync.get('rules', (result: { rules?: Rule[] }) => {
   const rules = result.rules ?? []
   render(rules)
+  highlightActiveRule()
 })
